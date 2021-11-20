@@ -14,7 +14,9 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
-        iterate_media_encoders()
+        val encoder_info = iterate_media_encoders()
+
+        findViewById<TextView>(R.id.codec_text).text = encoder_info.joinToString("\n")
     }
 
     private fun profile_to_string(codec_name: String, profile_level: MediaCodecInfo.CodecProfileLevel): String {
@@ -77,7 +79,7 @@ class MainActivity : AppCompatActivity() {
         return "UnknownColorFormat (${color_format_id})"
     }
 
-    private fun iterate_media_encoders() {
+    private fun iterate_media_encoders(): List<String> {
         val info_strings = mutableListOf<String>()
         for (codec_info in MediaCodecList(MediaCodecList.ALL_CODECS).codecInfos) {
             if (!codec_info.isEncoder)
@@ -146,10 +148,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         Log.w(TAG, "iterate_media_encoders: \n${info_strings.joinToString("\n")}")
-        val text_view = findViewById<TextView>(R.id.codec_text)
-        text_view?.let {
-            text_view.text = info_strings.joinToString("\n")
-        }
 
+        return info_strings
     }
 }
