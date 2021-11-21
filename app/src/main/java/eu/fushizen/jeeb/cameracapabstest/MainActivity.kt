@@ -4,6 +4,7 @@ import android.hardware.camera2.CameraManager
 import android.media.MediaCodecInfo
 import android.media.MediaCodecInfo.EncoderCapabilities.*
 import android.media.MediaCodecList
+import android.media.MediaCodecList.ALL_CODECS
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.util.Log
@@ -82,7 +83,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun iterate_media_encoders(): List<String> {
         val info_strings = mutableListOf<String>()
-        for (codec_info in MediaCodecList(MediaCodecList.ALL_CODECS).codecInfos) {
+        for (codec_info in MediaCodecList(ALL_CODECS).codecInfos) {
             if (!codec_info.isEncoder)
                 continue
 
