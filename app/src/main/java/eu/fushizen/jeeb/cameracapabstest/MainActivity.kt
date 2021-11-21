@@ -1,5 +1,6 @@
 package eu.fushizen.jeeb.cameracapabstest
 
+import android.hardware.camera2.CameraManager
 import android.media.MediaCodecInfo
 import android.media.MediaCodecInfo.EncoderCapabilities.*
 import android.media.MediaCodecList
@@ -150,5 +151,21 @@ class MainActivity : AppCompatActivity() {
         // Log.w(TAG, "iterate_media_encoders: \n${info_strings.joinToString("\n")}")
 
         return info_strings
+    }
+
+    private fun iterate_cameras() {
+        val manager = getSystemService(CAMERA_SERVICE) as CameraManager
+
+        for (camera_id in manager.cameraIdList) {
+            val characteristics = manager.getCameraCharacteristics(camera_id)
+            Log.w(TAG, "Camera: $camera_id")
+
+            if (characteristics.keys.isNotEmpty()) {
+                Log.w(TAG, "\tCharacteristics:")
+                for (key in characteristics.keys) {
+                    Log.w(TAG, "\t\t${key}")
+                }
+            }
+        }
     }
 }
