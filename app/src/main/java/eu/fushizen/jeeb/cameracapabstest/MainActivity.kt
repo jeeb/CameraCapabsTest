@@ -9,6 +9,7 @@ import android.media.MediaCodecInfo.CodecProfileLevel.HEVCProfileMain10HDR10
 import android.media.MediaCodecInfo.EncoderCapabilities.*
 import android.media.MediaCodecList
 import android.media.MediaCodecList.ALL_CODECS
+import android.media.MediaFormat
 import android.media.MediaFormat.*
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
@@ -18,7 +19,7 @@ import java.nio.ByteBuffer
 
 class MainActivity : AppCompatActivity() {
     private val TAG = "CameraCapabsTest"
-    private val try_10bit = false
+    private val try_10bit = true
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -76,7 +77,7 @@ class MainActivity : AppCompatActivity() {
                 this.setInteger(KEY_COLOR_RANGE, COLOR_RANGE_FULL)
                 this.setByteBuffer(KEY_HDR_STATIC_INFO, ByteBuffer.wrap(ct861_3_hdr_infoframe))
             }
-            this.setInteger(KEY_COLOR_FORMAT, COLOR_FormatSurface)
+            // this.setInteger(KEY_COLOR_FORMAT, COLOR_FormatSurface)
             this.setInteger(KEY_BIT_RATE, 50_000_000)
             this.setInteger(KEY_FRAME_RATE, 60)
             this.setInteger(KEY_I_FRAME_INTERVAL, 120)
@@ -88,27 +89,42 @@ class MainActivity : AppCompatActivity() {
         )
         if (codec_name != null) {
             val codec = MediaCodec.createByCodecName(codec_name)
-            codec.configure(codec_config, media_surface, null, CONFIGURE_FLAG_ENCODE)
-
-            val configured_input_format = codec.inputFormat.apply {
-                if (this.keys.isNotEmpty()) {
-                    configured_info.add("Configured Input Format:")
-                    for (key in this.keys) {
-                        this.getValueTypeForKey(key)
-                        configured_info.add("\t${key}")
+            codec.codecInfo.getCapabilitiesForType("video/hevc").apply {
+                for (format in this.colorFormats) {
+                    Log.i(TAG, "color format: ${color_format_to_string(this, format)}")
+                    val format_config = MediaFormat(codec_config).apply {
+                        this.setInteger(KEY_COLOR_FORMAT, format)
                     }
+
+                    try {
+                        codec.configure(format_config, media_surface, null, CONFIGURE_FLAG_ENCODE)
+
+                        val configured_input_format = codec.inputFormat.apply {
+                            if (this.keys.isNotEmpty()) {
+                                configured_info.add("Configured Input Format:")
+                                for (key in this.keys) {
+                                    this.getValueTypeForKey(key)
+                                    configured_info.add("\t${key}")
+                                }
+                            }
+                        }
+                        val configured_output_format = codec.outputFormat.apply {
+                            if (this.keys.isNotEmpty()) {
+                                configured_info.add("Configured Output Format:")
+                                for (key in this.keys) {
+                                    configured_info.add("\t${key}")
+                                }
+                            }
+                        }
+                    } catch (err: Exception) {
+                        Log.e(TAG, "Failed to configure MediaCodec: $err")
+                    } finally {
+                        codec.reset()
+                    }
+
                 }
             }
-            val configured_output_format = codec.outputFormat.apply {
-                if (this.keys.isNotEmpty()) {
-                    configured_info.add("Configured Output Format:")
-                    for (key in this.keys) {
-                        configured_info.add("\t${key}")
-                    }
-                }
-            }
 
-            codec.reset()
         }
 
         findViewById<TextView>(R.id.codec_text).text = (
