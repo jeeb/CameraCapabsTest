@@ -1,24 +1,119 @@
 package eu.fushizen.jeeb.cameracapabstest
 
 import android.hardware.camera2.CameraManager
+import android.media.MediaCodec
+import android.media.MediaCodec.CONFIGURE_FLAG_ENCODE
 import android.media.MediaCodecInfo
+import android.media.MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface
+import android.media.MediaCodecInfo.CodecProfileLevel.HEVCProfileMain10HDR10
 import android.media.MediaCodecInfo.EncoderCapabilities.*
 import android.media.MediaCodecList
 import android.media.MediaCodecList.ALL_CODECS
+import android.media.MediaFormat.*
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.util.Log
 import android.widget.TextView
+import java.nio.ByteBuffer
 
 class MainActivity : AppCompatActivity() {
     private val TAG = "CameraCapabsTest"
+    private val try_10bit = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
+        val ct861_3_hdr_infoframe = ubyteArrayOf(
+            // Static_Metadata_Descriptor_ID = 0, signifying Static Metadata Descriptor Type 1
+            0u,
+            // display_primaries_x[0], LSB and MSB
+            0u, 0u,
+            // display_primaries_y[0], LSB and MSB
+            0u, 0u,
+            // display_primaries_x[1], LSB and MSB
+            0u, 0u,
+            // display_primaries_y[1], LSB and MSB
+            0u, 0u,
+            // display_primaries_x[2], LSB and MSB
+            0u, 0u,
+            // display_primaries_y[2], LSB and MSB
+            0u, 0u,
+            // white_point_x, LSB and MSB
+            0u, 0u,
+            // white_point_y, LSB and MSB
+            0u, 0u,
+            // max_display_mastering_luminance, LSB and MSB
+            0u, 0u,
+            // min_display_mastering_luminance, LSB and MSB
+            0u, 0u,
+            // Maximum Content Light Level, LSB and MSB (pack("<H", 4000) , 0xa0 and 0x0f)
+            0xa0u, 0x0fu,
+            // Maximum Frame-average Light Level, LSB and MSB (pack("!H", 400) , 0x01, 0x90)
+            0x01u, 0x90u
+        ).toByteArray()
+
+        Log.i(TAG, "onCreate: infoframe bytearray size: ${ct861_3_hdr_infoframe.size} ")
+
+        // iterate_cameras()
         val encoder_info = iterate_media_encoders()
 
-        findViewById<TextView>(R.id.codec_text).text = encoder_info.joinToString("\n")
+        // try initializing a HEVC encoder
+        val configured_info = mutableListOf<String>()
+
+        val media_surface = MediaCodec.createPersistentInputSurface()
+        val codec_config = createVideoFormat(
+            "video/hevc", 3840, 2160
+        ).apply {
+            if (try_10bit) {
+                this.setInteger(KEY_PROFILE, HEVCProfileMain10HDR10)
+                this.setInteger(KEY_COLOR_TRANSFER, COLOR_TRANSFER_ST2084)
+                this.setInteger(KEY_COLOR_FORMAT, COLOR_STANDARD_BT2020)
+                this.setInteger(KEY_COLOR_RANGE, COLOR_RANGE_FULL)
+                this.setByteBuffer(KEY_HDR_STATIC_INFO, ByteBuffer.wrap(ct861_3_hdr_infoframe))
+            } else {
+                this.setInteger(KEY_COLOR_TRANSFER, COLOR_TRANSFER_HLG)
+                this.setInteger(KEY_COLOR_FORMAT, COLOR_STANDARD_BT2020)
+                this.setInteger(KEY_COLOR_RANGE, COLOR_RANGE_FULL)
+                this.setByteBuffer(KEY_HDR_STATIC_INFO, ByteBuffer.wrap(ct861_3_hdr_infoframe))
+            }
+            this.setInteger(KEY_COLOR_FORMAT, COLOR_FormatSurface)
+            this.setInteger(KEY_BIT_RATE, 50_000_000)
+            this.setInteger(KEY_FRAME_RATE, 60)
+            this.setInteger(KEY_I_FRAME_INTERVAL, 120)
+        }
+        val codec_name = MediaCodecList(
+            ALL_CODECS
+        ).findEncoderForFormat(
+            codec_config
+        )
+        if (codec_name != null) {
+            val codec = MediaCodec.createByCodecName(codec_name)
+            codec.configure(codec_config, media_surface, null, CONFIGURE_FLAG_ENCODE)
+
+            val configured_input_format = codec.inputFormat.apply {
+                if (this.keys.isNotEmpty()) {
+                    configured_info.add("Configured Input Format:")
+                    for (key in this.keys) {
+                        this.getValueTypeForKey(key)
+                        configured_info.add("\t${key}")
+                    }
+                }
+            }
+            val configured_output_format = codec.outputFormat.apply {
+                if (this.keys.isNotEmpty()) {
+                    configured_info.add("Configured Output Format:")
+                    for (key in this.keys) {
+                        configured_info.add("\t${key}")
+                    }
+                }
+            }
+
+            codec.reset()
+        }
+
+        findViewById<TextView>(R.id.codec_text).text = (
+                encoder_info + configured_info
+        ).joinToString("\n")
     }
 
     private fun profile_to_string(codec_name: String, profile_level: MediaCodecInfo.CodecProfileLevel): String {

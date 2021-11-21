@@ -8,7 +8,7 @@ android {
 
     defaultConfig {
         applicationId "eu.fushizen.jeeb.cameracapabstest"
-        minSdk 23
+        minSdk 29
         targetSdk 30
         versionCode 1
         versionName "1.0"
