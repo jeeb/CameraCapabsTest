@@ -147,7 +147,7 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        Log.w(TAG, "iterate_media_encoders: \n${info_strings.joinToString("\n")}")
+        // Log.w(TAG, "iterate_media_encoders: \n${info_strings.joinToString("\n")}")
 
         return info_strings
     }
