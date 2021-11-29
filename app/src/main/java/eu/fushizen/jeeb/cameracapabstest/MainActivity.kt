@@ -5,6 +5,7 @@ import android.media.MediaCodec
 import android.media.MediaCodec.CONFIGURE_FLAG_ENCODE
 import android.media.MediaCodecInfo
 import android.media.MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface
+import android.media.MediaCodecInfo.CodecProfileLevel.HEVCHighTierLevel6
 import android.media.MediaCodecInfo.CodecProfileLevel.HEVCProfileMain10HDR10
 import android.media.MediaCodecInfo.EncoderCapabilities.*
 import android.media.MediaCodecList
@@ -67,6 +68,7 @@ class MainActivity : AppCompatActivity() {
         ).apply {
             if (try_10bit) {
                 this.setInteger(KEY_PROFILE, HEVCProfileMain10HDR10)
+                this.setInteger(KEY_LEVEL, HEVCHighTierLevel6)
                 this.setInteger(KEY_COLOR_TRANSFER, COLOR_TRANSFER_ST2084)
                 this.setInteger(KEY_COLOR_FORMAT, COLOR_STANDARD_BT2020)
                 this.setInteger(KEY_COLOR_RANGE, COLOR_RANGE_FULL)
