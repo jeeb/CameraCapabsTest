@@ -1,6 +1,10 @@
 package eu.fushizen.jeeb.cameracapabstest
 
+import android.graphics.ImageFormat
+import android.graphics.PixelFormat
+import android.hardware.camera2.CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP
 import android.hardware.camera2.CameraManager
+import android.hardware.camera2.params.StreamConfigurationMap
 import android.media.MediaCodec
 import android.media.MediaCodec.CONFIGURE_FLAG_ENCODE
 import android.media.MediaCodec.Callback
@@ -57,7 +61,7 @@ class MainActivity : AppCompatActivity() {
 
         Log.i(TAG, "onCreate: infoframe bytearray size: ${ct861_3_hdr_infoframe.size} ")
 
-        // iterate_cameras()
+        val camera_info = iterate_cameras()
         val encoder_info = iterate_media_encoders()
 
         // try initializing a HEVC encoder
@@ -191,7 +195,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         findViewById<TextView>(R.id.codec_text).text = (
-                encoder_info + configured_info
+                camera_info + listOf("\n") + encoder_info + listOf("\n") + configured_info
         ).joinToString("\n")
     }
 
@@ -253,6 +257,20 @@ class MainActivity : AppCompatActivity() {
         }
 
         return "UnknownColorFormat (${color_format_id})"
+    }
+
+    fun camera_color_to_string(format_id: Int): String {
+        for (obj in listOf(ImageFormat().javaClass, PixelFormat().javaClass)) {
+            for (field in obj.fields) {
+                if (field.type.toString() != "int")
+                    continue
+
+                if (field.getInt(obj) == format_id)
+                    return "${field.name} (${format_id})"
+            }
+        }
+
+        return "UnknownColorFormat (${format_id})"
     }
 
     private fun iterate_media_encoders(): List<String> {
@@ -328,19 +346,36 @@ class MainActivity : AppCompatActivity() {
         return info_strings
     }
 
-    private fun iterate_cameras() {
+    private fun iterate_cameras(): List<String> {
+        val info_strings = mutableListOf<String>()
+
         val manager = getSystemService(CAMERA_SERVICE) as CameraManager
 
         for (camera_id in manager.cameraIdList) {
+            info_strings.add("Camera: $camera_id")
             val characteristics = manager.getCameraCharacteristics(camera_id)
-            Log.w(TAG, "Camera: $camera_id")
+
+            val configs = characteristics.get(SCALER_STREAM_CONFIGURATION_MAP) as StreamConfigurationMap
+            configs.apply {
+                info_strings.add("\tInput formats:")
+                for (color_format in this.inputFormats) {
+                    info_strings.add("\t\t${camera_color_to_string(color_format)}")
+                }
+                info_strings.add("\tOutput formats:")
+                for (color_format in this.outputFormats) {
+                    info_strings.add("\t\t${camera_color_to_string(color_format)}")
+                }
+                info_strings.add("\tConfigs dump: $this")
+            }
 
             if (characteristics.keys.isNotEmpty()) {
-                Log.w(TAG, "\tCharacteristics:")
+                info_strings.add("\tCharacteristics:")
                 for (key in characteristics.keys) {
-                    Log.w(TAG, "\t\t${key}")
+                    info_strings.add( "\t\t${key.name}: ${characteristics.get(key).toString().take(35)}")
                 }
             }
         }
+
+        return info_strings
     }
 }
