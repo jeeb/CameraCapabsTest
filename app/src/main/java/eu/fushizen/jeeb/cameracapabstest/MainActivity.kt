@@ -3,6 +3,7 @@ package eu.fushizen.jeeb.cameracapabstest
 import android.hardware.camera2.CameraManager
 import android.media.MediaCodec
 import android.media.MediaCodec.CONFIGURE_FLAG_ENCODE
+import android.media.MediaCodec.Callback
 import android.media.MediaCodecInfo
 import android.media.MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface
 import android.media.MediaCodecInfo.CodecProfileLevel.HEVCHighTierLevel6
@@ -79,7 +80,7 @@ class MainActivity : AppCompatActivity() {
                 this.setInteger(KEY_COLOR_RANGE, COLOR_RANGE_FULL)
                 this.setByteBuffer(KEY_HDR_STATIC_INFO, ByteBuffer.wrap(ct861_3_hdr_infoframe))
             }
-            // this.setInteger(KEY_COLOR_FORMAT, COLOR_FormatSurface)
+            this.setInteger(KEY_COLOR_FORMAT, COLOR_FormatSurface)
             this.setInteger(KEY_BIT_RATE, 50_000_000)
             this.setInteger(KEY_FRAME_RATE, 60)
             this.setInteger(KEY_I_FRAME_INTERVAL, 120)
@@ -91,42 +92,102 @@ class MainActivity : AppCompatActivity() {
         )
         if (codec_name != null) {
             val codec = MediaCodec.createByCodecName(codec_name)
-            codec.codecInfo.getCapabilitiesForType("video/hevc").apply {
-                for (format in this.colorFormats) {
-                    Log.i(TAG, "color format: ${color_format_to_string(this, format)}")
-                    val format_config = MediaFormat(codec_config).apply {
-                        this.setInteger(KEY_COLOR_FORMAT, format)
+            try {
+                codec.setCallback(object : Callback() {
+                    override fun onInputBufferAvailable(mc: MediaCodec, inputBufferId: Int) {
+                        Log.i(TAG, "onInputBufferAvailable: $inputBufferId")
                     }
 
-                    try {
-                        codec.configure(format_config, media_surface, null, CONFIGURE_FLAG_ENCODE)
+                    override fun onOutputBufferAvailable(mc: MediaCodec, outputBufferId: Int,
+                                                         bufferInfo: MediaCodec.BufferInfo) {
+                        Log.i(TAG, "onOutputBufferAvailable: buffer_id: $outputBufferId, " +
+                                   " buffer size: ${bufferInfo.size}")
+                    }
 
-                        val configured_input_format = codec.inputFormat.apply {
-                            if (this.keys.isNotEmpty()) {
-                                configured_info.add("Configured Input Format:")
-                                for (key in this.keys) {
-                                    this.getValueTypeForKey(key)
-                                    configured_info.add("\t${key}")
+                    override fun onError(mc: MediaCodec, exc: MediaCodec.CodecException) {
+                        Log.e(TAG, "onError: $exc ${exc.diagnosticInfo}")
+                    }
+
+                    override fun onOutputFormatChanged(mc: MediaCodec, format: MediaFormat) {
+                        Log.i(
+                            TAG,
+                            "onOutputFormatChanged: ${
+                                format.getInteger(KEY_WIDTH)
+                            }x${
+                                format.getInteger(KEY_HEIGHT)
+                            }, format:  ${
+                                color_format_to_string(
+                                    MediaCodecInfo.CodecCapabilities(),
+                                    format.getInteger(KEY_COLOR_FORMAT)
+                                )
+                            }"
+                        )
+                    }
+
+                })
+                codec.configure(codec_config, media_surface, null, CONFIGURE_FLAG_ENCODE)
+
+                codec.inputFormat.apply {
+                    if (this.keys.isNotEmpty()) {
+                        configured_info.add("Configured Input Format:")
+                        for (key in this.keys) {
+                            when (this.getValueTypeForKey(key)) {
+                                TYPE_BYTE_BUFFER -> {
+                                    configured_info.add("\t${key} -> ${this.getByteBuffer(key)}")
+                                }
+                                TYPE_FLOAT -> {
+                                    configured_info.add("\t${key} -> ${this.getFloat(key)}")
+                                }
+                                TYPE_INTEGER -> {
+                                    configured_info.add("\t${key} -> ${this.getInteger(key)}")
+                                }
+                                TYPE_LONG -> {
+                                    configured_info.add("\t${key} -> ${this.getLong(key)}")
+                                }
+                                TYPE_NULL -> {
+                                    configured_info.add("\t${key} -> null")
+                                }
+                                TYPE_STRING -> {
+                                    configured_info.add("\t${key} -> ${this.getString(key)}")
                                 }
                             }
                         }
-                        val configured_output_format = codec.outputFormat.apply {
-                            if (this.keys.isNotEmpty()) {
-                                configured_info.add("Configured Output Format:")
-                                for (key in this.keys) {
-                                    configured_info.add("\t${key}")
-                                }
-                            }
-                        }
-                    } catch (err: Exception) {
-                        Log.e(TAG, "Failed to configure MediaCodec: $err")
-                    } finally {
-                        codec.reset()
                     }
-
                 }
-            }
+                codec.outputFormat.apply {
+                    if (this.keys.isNotEmpty()) {
+                        configured_info.add("Configured Output Format:")
+                        for (key in this.keys) {
+                            when (this.getValueTypeForKey(key)) {
+                                TYPE_BYTE_BUFFER -> {
+                                    configured_info.add("\t${key} -> ${this.getByteBuffer(key)}")
+                                }
+                                TYPE_FLOAT -> {
+                                    configured_info.add("\t${key} -> ${this.getFloat(key)}")
+                                }
+                                TYPE_INTEGER -> {
+                                    configured_info.add("\t${key} -> ${this.getInteger(key)}")
+                                }
+                                TYPE_LONG -> {
+                                    configured_info.add("\t${key} -> ${this.getLong(key)}")
+                                }
+                                TYPE_NULL -> {
+                                    configured_info.add("\t${key} -> null")
+                                }
+                                TYPE_STRING -> {
+                                    configured_info.add("\t${key} -> ${this.getString(key)}")
+                                }
+                            }
+                        }
+                    }
+                }
 
+                codec.start()
+            } catch (err: Exception) {
+                Log.e(TAG, "Failed to configure MediaCodec: $err")
+            } finally {
+                codec.reset()
+            }
         }
 
         findViewById<TextView>(R.id.codec_text).text = (
