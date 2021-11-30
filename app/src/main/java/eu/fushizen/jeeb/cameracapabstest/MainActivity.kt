@@ -359,11 +359,31 @@ class MainActivity : AppCompatActivity() {
             configs.apply {
                 info_strings.add("\tInput formats:")
                 for (color_format in this.inputFormats) {
-                    info_strings.add("\t\t${camera_color_to_string(color_format)}")
+                    val size_strings = mutableListOf<String>()
+                    for (size in configs.getInputSizes(color_format)) {
+                        size_strings.add("${size.width}x${size.height}")
+                    }
+                    info_strings.add(
+                        "\t\t${camera_color_to_string(color_format)}:" +
+                        "\n\t\t\t${size_strings.joinToString("\n\t\t\t")}"
+                    )
                 }
                 info_strings.add("\tOutput formats:")
                 for (color_format in this.outputFormats) {
-                    info_strings.add("\t\t${camera_color_to_string(color_format)}")
+                    val size_strings = mutableListOf<String>()
+                    for (size in configs.getOutputSizes(color_format)) {
+                        size_strings.add(
+                            "${size.width}x${size.height} @ " +
+                            "${"%.2f".format(
+                                1000000000.toDouble() /
+                                this.getOutputMinFrameDuration(color_format, size).toDouble()
+                            )}fps"
+                        )
+                    }
+                    info_strings.add(
+                        "\t\t${camera_color_to_string(color_format)}:" +
+                        "\n\t\t\t${size_strings.joinToString("\n\t\t\t")}"
+                    )
                 }
                 info_strings.add("\tConfigs dump: $this")
             }
